@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calc</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Layout: a printing-calculator feel. Paper tape of past lines beside a keypad; stacks on phones. */
+  :root {
+    color-scheme: light;
+    --bg: #eef1ef;
+    --panel: #f8faf9;
+    --ink: #17211e;
+    --muted: #5d6b66;
+    --line: #d3dbd7;
+    --accent: #0f6b63;
+    --accent-ink: #ffffff;
+    --key: #e4e9e6;
+    --key-hover: #d9e0dc;
+    --op: #d3e5e1;
+    --op-hover: #c4dbd6;
+    --err: #a4362d;
+    --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1514; --panel: #151d1b; --ink: #e3ece8; --muted: #8fa19a; --line: #26332f;
+      --accent: #4fc1b4; --accent-ink: #07201d; --key: #1d2825; --key-hover: #263632;
+      --op: #1f3531; --op-hover: #28443f; --err: #ff8f84;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1514; --panel: #151d1b; --ink: #e3ece8; --muted: #8fa19a; --line: #26332f;
+    --accent: #4fc1b4; --accent-ink: #07201d; --key: #1d2825; --key-hover: #263632;
+    --op: #1f3531; --op-hover: #28443f; --err: #ff8f84;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.45;
+    padding-block: 28px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 52rem; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; }
+  .ans-chip {
+    font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted);
+    display: inline-flex; gap: 8px; align-items: baseline; min-width: 0;
+  }
+  .ans-chip b { color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+  .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; }
+
+  .app { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  @media (min-width: 760px) { .app { grid-template-columns: minmax(0, 1fr) 19rem; align-items: start; } }
+
+  .tape {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+    display: flex; flex-direction: column; min-width: 0;
+  }
+  .tape-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .linkbtn {
+    background: none; border: 0; padding: 4px 0; font: inherit; font-size: 0.8rem; color: var(--accent);
+    cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+  }
+  ol.lines { list-style: none; margin: 0; padding: 4px 0; min-height: 13rem; max-height: 22rem; overflow-y: auto; }
+  ol.lines li + li { border-top: 1px dashed var(--line); }
+  .entry {
+    width: 100%; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+    background: none; border: 0; color: inherit; font: inherit; text-align: right;
+    padding: 9px 14px; cursor: pointer; min-width: 0;
+  }
+  .entry:hover { background: var(--key); }
+  .expr { font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted); overflow-wrap: anywhere; max-width: 100%; }
+  .res { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; max-width: 100%; }
+  .entry.bad .res { font-family: var(--font-body); font-size: 0.9rem; font-weight: 500; color: var(--err); }
+  .empty { padding: 20px 14px; color: var(--muted); font-size: 0.9rem; }
+  .empty.bad { color: var(--err); }
+  .empty code { font-family: var(--font-mono); font-size: 0.95em; }
+
+  .entry-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); padding: 8px 8px 8px 14px; }
+  .prompt { font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
+  #expr-input {
+    flex: 1; min-width: 0; background: none; border: 0; color: var(--ink);
+    font-family: var(--font-mono); font-size: 1.1rem; padding: 8px 4px;
+  }
+  #expr-input::placeholder { color: var(--muted); opacity: 0.8; }
+  #expr-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+  .pad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .pad button {
+    font-family: var(--font-mono); font-size: 1.15rem; font-weight: 500; color: var(--ink);
+    background: var(--key); border: 1px solid var(--line); border-radius: 6px;
+    min-height: 3.2rem; cursor: pointer; padding: 0;
+  }
+  .pad button:hover { background: var(--key-hover); }
+  .pad button:active { transform: translateY(1px); }
+  .pad button.op { background: var(--op); color: var(--accent); }
+  .pad button.op:hover { background: var(--op-hover); }
+  .pad button.eq { grid-column: 1 / -1; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .pad button.eq:hover { filter: brightness(1.08); }
+  .pad button.word { font-size: 0.95rem; }
+  .pad button:focus-visible, .linkbtn:focus-visible, .entry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .hint { color: var(--muted); font-size: 0.82rem; margin: 0; }
+  .hint code { font-family: var(--font-mono); font-size: 0.95em; }
+  @media (prefers-reduced-motion: reduce) { .pad button:active { transform: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Calc</h1>
+    <span class="ans-chip"><span class="label">ans</span><b id="ans-val">0</b></span>
+  </header>
+
+  <div class="app">
+    <section class="tape" aria-label="Calculation tape">
+      <div class="tape-head">
+        <span class="label">Tape</span>
+        <button class="linkbtn" id="clear-tape" type="button">Clear tape</button>
+      </div>
+      <ol class="lines" id="lines" role="log" aria-live="polite"></ol>
+      <form class="entry-row" id="form" autocomplete="off">
+        <span class="prompt" aria-hidden="true">&gt;</span>
+        <input id="expr-input" type="text" inputmode="none" spellcheck="false" autocapitalize="off" autocorrect="off"
+               placeholder="12 * (3 + 4)" aria-label="Expression">
+      </form>
+    </section>
+
+    <div class="pad" id="pad">
+      <button type="button" data-ins="(" class="op">(</button>
+      <button type="button" data-ins=")" class="op">)</button>
+      <button type="button" data-act="back" aria-label="Backspace">&#9003;</button>
+      <button type="button" data-act="clear" class="word" aria-label="Clear input">C</button>
+
+      <button type="button" data-ins="7">7</button>
+      <button type="button" data-ins="8">8</button>
+      <button type="button" data-ins="9">9</button>
+      <button type="button" data-ins=" / " class="op" aria-label="Divide">&divide;</button>
+
+      <button type="button" data-ins="4">4</button>
+      <button type="button" data-ins="5">5</button>
+      <button type="button" data-ins="6">6</button>
+      <button type="button" data-ins=" * " class="op" aria-label="Multiply">&times;</button>
+
+      <button type="button" data-ins="1">1</button>
+      <button type="button" data-ins="2">2</button>
+      <button type="button" data-ins="3">3</button>
+      <button type="button" data-ins=" - " class="op" aria-label="Subtract">&minus;</button>
+
+      <button type="button" data-ins="0">0</button>
+      <button type="button" data-ins=".">.</button>
+      <button type="button" data-ins="ans" class="word">ans</button>
+      <button type="button" data-ins=" + " class="op" aria-label="Add">+</button>
+
+      <button type="button" data-act="eval" class="eq">=</button>
+    </div>
+  </div>
+
+  <p class="hint">Every calculation is evaluated by <code>calc.py</code> through <code>server.py</code>. <code>ans</code> is the last result. Select a line on the tape to edit it again.</p>
+</div>
+
+<script>
+  var ans = 0;
+  var queue = Promise.resolve();
+  var input = document.getElementById("expr-input");
+  var lines = document.getElementById("lines");
+  var ansVal = document.getElementById("ans-val");
+
+  // Sends one expression to calc.py (via server.py). Resolves with {value, text}.
+  async function evaluate(text) {
+    var res;
+    try {
+      res = await fetch("/api/calc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expr: text, ans: ans })
+      });
+    } catch (e) {
+      var down = new Error("Can't reach the calc server. Check that server.py is still running.");
+      down.shown = true;
+      throw down;
+    }
+    var data = {};
+    try { data = await res.json(); } catch (e) { /* non-JSON error body */ }
+    if (!res.ok) {
+      var bad = new Error(data.error || "Can't calculate that. Check the expression.");
+      bad.shown = true;
+      throw bad;
+    }
+    return data;
+  }
+
+  function setNote(html, isBad) {
+    var note = document.getElementById("empty-note");
+    if (!note) {
+      note = document.createElement("li");
+      note.id = "empty-note";
+      lines.appendChild(note);
+    }
+    note.className = "empty" + (isBad ? " bad" : "");
+    note.innerHTML = html;
+  }
+
+  function addLine(expression, result, isError) {
+    var note = document.getElementById("empty-note");
+    if (note) note.remove();
+    var li = document.createElement("li");
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "entry" + (isError ? " bad" : "");
+    b.dataset.expr = expression;
+    var e = document.createElement("span");
+    e.className = "expr";
+    e.textContent = expression;
+    var r = document.createElement("span");
+    r.className = "res";
+    r.textContent = result;
+    b.appendChild(e);
+    b.appendChild(r);
+    li.appendChild(b);
+    lines.appendChild(li);
+    lines.scrollTop = lines.scrollHeight;
+  }
+
+  // Calls run one at a time so each request carries the right ans.
+  function run(text) {
+    text = text.trim();
+    if (!text) return queue;
+    queue = queue.then(async function () {
+      try {
+        var out = await evaluate(text);
+        ans = out.value;
+        ansVal.textContent = out.text;
+        addLine(text, out.text, false);
+      } catch (err) {
+        addLine(text, err.shown ? err.message : "Something went wrong. Try again.", true);
+      }
+    });
+    return queue;
+  }
+
+  function insertAtCursor(s) {
+    var a = input.selectionStart, b = input.selectionEnd;
+    if (a === null) { a = b = input.value.length; }
+    input.value = input.value.slice(0, a) + s + input.value.slice(b);
+    var p = a + s.length;
+    input.setSelectionRange(p, p);
+  }
+
+  function backspace() {
+    var a = input.selectionStart, b = input.selectionEnd;
+    if (a === null) { a = b = input.value.length; }
+    if (a !== b) { input.value = input.value.slice(0, a) + input.value.slice(b); input.setSelectionRange(a, a); return; }
+    if (a === 0) return;
+    input.value = input.value.slice(0, a - 1) + input.value.slice(a);
+    input.setSelectionRange(a - 1, a - 1);
+  }
+
+  document.getElementById("form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    run(input.value);
+    input.value = "";
+  });
+
+  document.getElementById("pad").addEventListener("click", function (ev) {
+    var btn = ev.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.ins !== undefined) { insertAtCursor(btn.dataset.ins); return; }
+    var act = btn.dataset.act;
+    if (act === "back") backspace();
+    else if (act === "clear") { input.value = ""; }
+    else if (act === "eval") { run(input.value); input.value = ""; }
+  });
+
+  lines.addEventListener("click", function (ev) {
+    var btn = ev.target.closest(".entry");
+    if (!btn) return;
+    input.value = btn.dataset.expr;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
+
+  document.getElementById("clear-tape").addEventListener("click", function () {
+    queue = queue.then(function () {
+      lines.textContent = "";
+      ans = 0;
+      ansVal.textContent = "0";
+      setNote("Nothing yet. Type an expression or use the keypad, then press Enter.", false);
+    });
+  });
+
+  // On load, confirm the server is there, then show a few sample lines so ans chaining is visible.
+  (async function start() {
+    try {
+      var res = await fetch("/api/health");
+      if (!res.ok) throw new Error("health");
+    } catch (e) {
+      setNote("Can't reach the calc server. Run <code>python3 server.py</code> in this folder and open the address it prints.", true);
+      return;
+    }
+    ["12 * 4.5", "ans / 4 - 1.5", "-(ans + 3) * 2"].forEach(run);
+  })();
+</script>
+</body>
+</html>
