@@ -246,6 +246,9 @@ backend code.
 
 I made an AST calculator based on my compilers knowledge. I did have to search for the AST library, but other than that, that is my code.
 
+Usage: run python server.py
+follow the link that the script results in for the local web application.
+
 
 2.  What challenges did you encounter in the process?
 
