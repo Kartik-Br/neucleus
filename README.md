@@ -243,13 +243,31 @@ backend code.
 ## Follow-up questions
 
 1.  How far were you able to get with the exercise?
+
+I made an AST calculator based on my compilers knowledge. I did have to search for the AST library, but other than that, that is my code.
+
+
 2.  What challenges did you encounter in the process?
+
+I have no experience with front or back end. my main experience comes from bare-metal C/ low-level C. 
+
 3.  If you were given unlimited time, what additional functionality
     would you include?
+
+I would extend the calculator to include more than just + - * and /. I would make it have the full functionality of a scientific calculator.
+
 4.  If you used AI, please include all of your prompts and answer the
     following questions:
+
+I promped the AI to make a frontend and a backend for the calc.py I made. 
+
     -   What did the AI do well?
+It successfully made the backend server, and then used the index.html to then run a localhost server.
+
     -   What did the AI do poorly?
+
+since most of the job was to implement a frontend, it did not do anything wrong. even for the frontend, the buttons and text it implemented was just from my calc base code.
+
     -   For the places it did poorly, how did you change your approach
         to your prompts to improve its output?
 
